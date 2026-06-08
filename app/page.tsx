@@ -7,6 +7,7 @@ import { getTopics, getAllProgress, getMeta, updateMeta } from '@/lib/storage';
 import { getTodayPlan } from '@/lib/studyPlan';
 import TopicCard from '@/components/TopicCard';
 import EmailReminder from '@/components/EmailReminder';
+import ThemeToggle from '@/components/ThemeToggle';
 import { Flame, Bell, Calendar, Settings, ChevronRight } from 'lucide-react';
 
 export default function Dashboard() {
@@ -51,7 +52,8 @@ export default function Dashboard() {
           <h1 className="text-3xl sm:text-4xl font-serif text-primary mb-1">TOEIC 600</h1>
           <p className="text-text-muted">Lộ trình 21 ngày &bull; Spaced Repetition</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <ThemeToggle />
           <button onClick={() => setShowEmailModal(true)} className="flex items-center gap-2 px-4 py-2 bg-surface-2 rounded-lg hover:bg-border transition-colors text-sm font-medium">
             <Bell size={18} /> Nhắc nhở
           </button>
