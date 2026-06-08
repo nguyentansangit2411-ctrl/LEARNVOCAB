@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Word } from '@/lib/types';
-import { Eye } from 'lucide-react';
+import { Eye, Volume2 } from 'lucide-react';
 
 interface FlashCardProps {
   word: Word;
@@ -18,6 +18,15 @@ export default function FlashCard({ word, onRate }: FlashCardProps) {
     setIsFlipped(false);
   };
 
+  const playPronunciation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(word.word);
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   return (
     <div className="w-full max-w-md mx-auto aspect-[3/4] relative perspective-1000">
       <div 
@@ -28,7 +37,16 @@ export default function FlashCard({ word, onRate }: FlashCardProps) {
           className="absolute w-full h-full backface-hidden bg-surface border border-border rounded-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer hover:border-primary transition-colors" 
           onClick={() => setIsFlipped(true)}
         >
-          <h2 className="text-4xl font-mono font-bold text-text mb-4">{word.word}</h2>
+          <div className="flex items-center gap-4 mb-4">
+            <h2 className="text-4xl font-mono font-bold text-text">{word.word}</h2>
+            <button 
+              onClick={playPronunciation} 
+              className="p-2 bg-primary/10 text-primary rounded-full hover:bg-primary hover:text-white transition-colors"
+              title="Phát âm"
+            >
+              <Volume2 size={24} />
+            </button>
+          </div>
           <span className="text-lg text-text-muted">({word.type})</span>
           <div className="mt-auto flex items-center gap-2 text-primary animate-pulse">
             <Eye size={20} />
@@ -39,7 +57,16 @@ export default function FlashCard({ word, onRate }: FlashCardProps) {
         {/* Back */}
         <div className="absolute w-full h-full backface-hidden bg-surface border border-border rounded-2xl rotate-y-180 flex flex-col p-6 shadow-[0_0_30px_rgba(108,99,255,0.1)]">
           <div className="text-center mb-6 pb-4 border-b border-border">
-            <h2 className="text-3xl font-mono font-bold text-text mb-2">{word.word}</h2>
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <h2 className="text-3xl font-mono font-bold text-text">{word.word}</h2>
+              <button 
+                onClick={playPronunciation} 
+                className="p-1.5 bg-primary/10 text-primary rounded-full hover:bg-primary hover:text-white transition-colors"
+                title="Phát âm"
+              >
+                <Volume2 size={20} />
+              </button>
+            </div>
             <span className="text-sm text-text-muted">({word.type})</span>
           </div>
           
