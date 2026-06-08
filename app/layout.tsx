@@ -18,7 +18,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            try {
+              if (localStorage.theme === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+                document.documentElement.classList.add('light')
+              } else {
+                document.documentElement.classList.remove('light')
+              }
+            } catch (_) {}
+          `
+        }} />
+      </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} ${instrumentSerif.variable} font-sans bg-bg text-text min-h-screen`}
       >
