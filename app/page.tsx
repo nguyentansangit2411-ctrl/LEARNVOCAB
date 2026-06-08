@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Topic, DayPlan, StudyMeta } from '@/lib/types';
 import { getTopics, getAllProgress, getMeta, updateMeta } from '@/lib/storage';
 import { getTodayPlan } from '@/lib/studyPlan';
+import { LEVEL_CONFIG } from '@/lib/levelSystem';
 import TopicCard from '@/components/TopicCard';
 import EmailReminder from '@/components/EmailReminder';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -41,8 +42,18 @@ export default function Dashboard() {
 
   if (!meta) return null;
 
+  const allProgress = Object.values(progresses);
   const totalWords = topics.reduce((acc, t) => acc + (t.words?.length || 0), 0);
-  const knownWords = Object.values(progresses).filter((p: any) => p.status === 'known').length;
+  
+  const levels = LEVEL_CONFIG.map(cfg => ({
+    ...cfg,
+    count: allProgress.filter((p: any) => p.level === cfg.level).length,
+  }));
+
+  const totalLearned = allProgress.length;
+  const notStarted = totalWords - totalLearned;
+  const maxCount = Math.max(...levels.map(l => l.count), 1);
+  const knownWords = levels.find(l => l.level === 4)?.count || 0;
   const overallProgress = totalWords > 0 ? Math.round((knownWords / totalWords) * 100) : 0;
 
   return (
@@ -111,7 +122,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Progress */}
+      {/* Progress & SRS Chart */}
       <section className="mb-8">
         <div className="flex justify-between items-end mb-3">
           <h2 className="text-xl font-bold text-text">Tiến độ tổng thể</h2>
@@ -119,16 +130,50 @@ export default function Dashboard() {
             Xem thống kê chi tiết <ChevronRight size={16} />
           </Link>
         </div>
-        <div className="bg-surface border border-border p-5 rounded-xl">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-text-muted">Từ vựng đã nhớ</span>
-            <span className="font-mono font-bold text-text">{knownWords} / {totalWords > 0 ? totalWords : 600} ({overallProgress}%)</span>
-          </div>
-          <div className="w-full bg-bg rounded-full h-3">
-            <div className="bg-success h-full rounded-full transition-all duration-1000 relative" style={{ width: `${overallProgress}%` }}>
-              <div className="absolute inset-0 bg-white/20 w-full rounded-full overflow-hidden">
-                <div className="w-1/2 h-full bg-gradient-to-r from-transparent to-white/40 skew-x-12 translate-x-[-100%] animate-[shimmer_2s_infinite]"></div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-surface border border-border p-6 rounded-xl">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-text-muted">Từ vựng đã thuộc lòng (Level 4)</span>
+              <span className="font-mono font-bold text-text">{knownWords} / {totalWords > 0 ? totalWords : 600} ({overallProgress}%)</span>
+            </div>
+            <div className="w-full bg-bg rounded-full h-3 mb-6">
+              <div className="bg-success h-full rounded-full transition-all duration-1000 relative" style={{ width: `${overallProgress}%` }}>
+                <div className="absolute inset-0 bg-white/20 w-full rounded-full overflow-hidden">
+                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent to-white/40 skew-x-12 translate-x-[-100%] animate-[shimmer_2s_infinite]"></div>
+                </div>
               </div>
+            </div>
+            
+            <div className="flex justify-between text-sm mt-4">
+              <span className="text-text-muted flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-bg border border-border"></span> Chưa học</span>
+              <span className="font-mono font-bold">{notStarted} từ</span>
+            </div>
+          </div>
+          
+          <div className="bg-surface border border-border p-6 rounded-xl flex flex-col justify-end min-h-[200px]">
+            <div className="flex justify-between items-end gap-2 h-32 mb-4">
+              {levels.map((lvl) => {
+                const height = Math.max((lvl.count / maxCount) * 100, 4);
+                return (
+                  <div key={lvl.level} className="flex-1 flex flex-col justify-end items-center group relative">
+                    <span className="text-xs font-mono font-bold mb-2 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6">{lvl.count}</span>
+                    <div 
+                      className={`w-full max-w-[40px] rounded-t-md transition-all duration-1000 ${lvl.bgClass} ${lvl.borderClass} border-t border-l border-r`}
+                      style={{ height: `${height}%`, backgroundColor: lvl.color + '40' }}
+                    ></div>
+                    <div className="mt-2 text-center">
+                      <span className="text-lg">{lvl.emoji}</span>
+                      <div className="text-[10px] sm:text-xs text-text-muted truncate w-full max-w-[80px] mx-auto mt-1">{lvl.label} ({lvl.count})</div>
+                      {lvl.level < 4 && (
+                        <div className="text-[9px] text-text-muted mt-0.5 hidden sm:block whitespace-nowrap">
+                          Cần {lvl.level === 1 ? 2 : lvl.level === 2 ? 3 : 4} lần đúng LT
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -144,8 +189,8 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {topics.map(topic => {
-            const topicKnown = topic.words?.filter(w => progresses[w.id]?.status === 'known').length || 0;
-            const topicProgress = topic.words?.length > 0 ? Math.round((topic.words.filter(w => progresses[w.id] && progresses[w.id].status !== 'new').length / topic.words.length) * 100) : 0;
+            const topicKnown = topic.words?.filter(w => progresses[w.id]?.level === 4).length || 0;
+            const topicProgress = topic.words?.length > 0 ? Math.round((topic.words.filter(w => progresses[w.id] && progresses[w.id].level >= 1).length / topic.words.length) * 100) : 0;
             return (
               <TopicCard key={topic.id} topic={topic} progress={topicProgress} knownWords={topicKnown} />
             );

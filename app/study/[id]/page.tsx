@@ -4,14 +4,14 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Topic, Word } from "@/lib/types";
-import { getTopics, getWordProgress, updateWordProgress } from "@/lib/storage";
-import { updateSM2 } from "@/lib/sm2";
+import { getTopics, getWordProgress, saveWordProgress } from "@/lib/storage";
+import { updateLevel, LEVEL_CONFIG } from "@/lib/levelSystem";
 import { ChevronLeft, Volume2, RotateCcw, Flag } from "lucide-react";
 import ProgressBar from "@/components/ProgressBar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type RatingQuality = 0 | 2 | 3 | 5;
+type RatingQuality = boolean;
 
 interface RatingResult {
   word: Word;
@@ -33,37 +33,19 @@ const RATINGS: {
   border: string;
 }[] = [
     {
-      quality: 0,
-      emoji: "😵",
-      label: "Quên",
-      sublabel: "Học lại ngay",
+      quality: false,
+      emoji: "❌",
+      label: "Chưa nhớ",
+      sublabel: "Học lại",
       color: "text-danger",
       bg: "bg-danger/10 hover:bg-danger/20",
       border: "border-danger/30 hover:border-danger/60",
     },
     {
-      quality: 2,
-      emoji: "😕",
-      label: "Khó",
-      sublabel: "Ôn lại ngày mai",
-      color: "text-warning",
-      bg: "bg-warning/10 hover:bg-warning/20",
-      border: "border-warning/30 hover:border-warning/60",
-    },
-    {
-      quality: 3,
-      emoji: "🙂",
-      label: "Nhớ ra",
-      sublabel: "Ôn sau 3 ngày",
-      color: "text-info",
-      bg: "bg-info/10 hover:bg-info/20",
-      border: "border-info/30 hover:border-info/60",
-    },
-    {
-      quality: 5,
-      emoji: "😊",
-      label: "Dễ",
-      sublabel: "Ôn sau 1 tuần",
+      quality: true,
+      emoji: "✅",
+      label: "Nhớ rồi",
+      sublabel: "Tiếp tục",
       color: "text-success",
       bg: "bg-success/10 hover:bg-success/20",
       border: "border-success/30 hover:border-success/60",
@@ -115,6 +97,9 @@ function FlashCard({
       : "-translate-x-[120%] opacity-0 -rotate-6"
     : "";
 
+  const progress = getWordProgress(word.id);
+  const levelCfg = LEVEL_CONFIG[(progress?.level || 1) - 1];
+
   return (
     <div
       className={`w-full flex flex-col gap-6 transition-all duration-500 ease-in-out ${exitClass}`}
@@ -146,7 +131,10 @@ function FlashCard({
             </span>
 
             {/* Word */}
-            <div className="text-center">
+            <div className="text-center mt-2">
+              <span className={`text-xs px-2 py-0.5 rounded-full mb-4 inline-block ${levelCfg.bgClass} ${levelCfg.textClass}`}>
+                {levelCfg.emoji} {levelCfg.label}
+              </span>
               <div className="font-mono text-5xl font-bold text-text tracking-tight leading-tight mb-2">
                 {word.word}
               </div>
@@ -243,14 +231,14 @@ function FlashCard({
 
       {/* Rating buttons — only visible on back */}
       <div
-        className={`grid grid-cols-4 gap-2 transition-all duration-300 ${cardState === "back"
+        className={`grid grid-cols-2 gap-4 transition-all duration-300 ${cardState === "back"
           ? "opacity-100 translate-y-0"
           : "opacity-0 translate-y-4 pointer-events-none"
           }`}
       >
         {RATINGS.map(r => (
           <button
-            key={r.quality}
+            key={String(r.quality)}
             onClick={() => onRate(r.quality)}
             className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all duration-200 active:scale-95 ${r.bg} ${r.border}`}
           >
@@ -288,10 +276,8 @@ function SummaryScreen({
   topic: Topic;
   forgottenCount: number;
 }) {
-  const ease = results.filter(r => r.quality === 5).length;
-  const ok = results.filter(r => r.quality === 3).length;
-  const hard = results.filter(r => r.quality === 2).length;
-  const forgotten = results.filter(r => r.quality === 0).length;
+  const remembered = results.filter(r => r.quality === true).length;
+  const forgotten = results.filter(r => r.quality === false).length;
   const uniqueWords = new Set(results.map(r => r.word.id)).size;
 
   return (
@@ -317,12 +303,10 @@ function SummaryScreen({
             <Flag size={16} className="text-primary" /> Kết quả phiên học
           </h3>
           {[
-            { emoji: "😊", label: "Dễ", count: ease, color: "text-success" },
-            { emoji: "🙂", label: "Nhớ ra", count: ok, color: "text-info" },
-            { emoji: "😕", label: "Khó", count: hard, color: "text-warning" },
+            { emoji: "✅", label: "Nhớ rồi", count: remembered, color: "text-success" },
             {
-              emoji: "😵",
-              label: "Quên",
+              emoji: "❌",
+              label: "Chưa nhớ",
               count: forgotten,
               color: "text-danger",
             },
@@ -418,10 +402,10 @@ export default function StudySession() {
       };
       setCanUndo(true);
 
-      // Persist SM-2
+      // Persist Level
       const prev = getWordProgress(word.id);
-      const updated = updateSM2(prev, quality);
-      updateWordProgress(word.id, updated);
+      const updated = updateLevel(prev, quality);
+      saveWordProgress(word.id, updated);
 
       // Record result
       const newResults = [...results, { word, quality }];
@@ -429,13 +413,13 @@ export default function StudySession() {
 
       // If forgotten → re-add at end of remaining queue
       const nextQueue = [...queue];
-      if (quality === 0) {
+      if (quality === false) {
         setForgottenCount(c => c + 1);
         nextQueue.push(word);
       }
 
       // Animate exit: good ratings → exit right, bad → exit left
-      const dir: ExitDirection = quality >= 3 ? "right" : "left";
+      const dir: ExitDirection = quality ? "right" : "left";
       setExitDirection(dir);
       setCardState("exiting");
 
@@ -474,10 +458,8 @@ export default function StudySession() {
         if (cardState === "front") handleFlip();
       }
       if (cardState === "back") {
-        if (e.key === "1") handleRate(0);
-        if (e.key === "2") handleRate(2);
-        if (e.key === "3") handleRate(3);
-        if (e.key === "4") handleRate(5);
+        if (e.key === "1") handleRate(false);
+        if (e.key === "2") handleRate(true);
       }
       if (e.key === "z" && (e.ctrlKey || e.metaKey)) {
         handleUndo();
@@ -540,7 +522,7 @@ export default function StudySession() {
 
       {/* Keyboard hint */}
       <div className="text-center text-xs text-text-muted/40 mb-4 hidden sm:block">
-        Space = lật thẻ · 1/2/3/4 = đánh giá · Ctrl+Z = hoàn tác
+        Space = lật thẻ · 1/2 = đánh giá · Ctrl+Z = hoàn tác
       </div>
 
       {/* Card area */}

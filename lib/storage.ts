@@ -1,4 +1,5 @@
 import { Topic, WordProgress, StudyMeta } from "./types";
+import { initProgress } from "./levelSystem";
 import { defaultTopics } from "../data/defaultTopics";
 
 const TOPICS_KEY = "toeic_topics";
@@ -28,8 +29,36 @@ export function getTopic(id: string): Topic | undefined {
 // --- Progress ---
 export function getAllProgress(): Record<string, WordProgress> {
   if (typeof window === "undefined") return {};
-  const data = localStorage.getItem(PROGRESS_KEY);
-  return data ? JSON.parse(data) : {};
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+
+    // MIGRATION: nếu data cũ có field "interval" (SM-2) → convert sang level
+    const migrated: Record<string, WordProgress> = {};
+    for (const [id, p] of Object.entries(parsed)) {
+      const old = p as Record<string, unknown>;
+      if ("interval" in old) {
+        // Convert SM-2 → level dựa trên repetitions
+        const reps = (old.repetitions as number) ?? 0;
+        const level = reps <= 1 ? 1 : reps <= 3 ? 2 : reps <= 6 ? 3 : 4;
+        migrated[id] = {
+          wordId: id,
+          level: level as 1 | 2 | 3 | 4,
+          consecutiveCorrect: 0,
+          consecutiveWrong: 0,
+          totalReviews: reps,
+          lastReview: (old.lastReview as string) || new Date().toISOString().split("T")[0],
+          firstLearnedAt: (old.lastReview as string) || new Date().toISOString().split("T")[0],
+        };
+      } else {
+        migrated[id] = p as WordProgress;
+      }
+    }
+    return migrated;
+  } catch {
+    return {};
+  }
 }
 
 export function saveAllProgress(progress: Record<string, WordProgress>): void {
@@ -37,24 +66,12 @@ export function saveAllProgress(progress: Record<string, WordProgress>): void {
   localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 }
 
-export function getWordProgress(wordId: string): WordProgress {
+export function getWordProgress(wordId: string): WordProgress | null {
   const all = getAllProgress();
-  if (all[wordId]) return all[wordId];
-  
-  // Default new progress
-  const today = new Date().toISOString().split('T')[0];
-  return {
-    wordId,
-    interval: 0,
-    easeFactor: 2.5,
-    repetitions: 0,
-    lastReview: "",
-    nextReview: today,
-    status: "new"
-  };
+  return all[wordId] ?? null;
 }
 
-export function updateWordProgress(wordId: string, progress: WordProgress): void {
+export function saveWordProgress(wordId: string, progress: WordProgress): void {
   const all = getAllProgress();
   all[wordId] = progress;
   saveAllProgress(all);

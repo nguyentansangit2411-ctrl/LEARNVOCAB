@@ -22,17 +22,20 @@ export default function StatsPage() {
   const allWords = topics.flatMap(t => t.words.map(w => ({ ...w, topicName: t.name })));
   const totalWords = allWords.length;
   
-  const known = Object.values(progresses).filter(p => p.status === 'known').length;
-  const learning = Object.values(progresses).filter(p => p.status === 'learning').length;
+  const known = Object.values(progresses).filter(p => p.level === 4).length;
+  const learning = Object.values(progresses).filter(p => p.level >= 1 && p.level <= 3).length;
   const newWordsCount = totalWords - known - learning;
 
   const today = new Date().toISOString().split('T')[0];
-  const dueToday = Object.values(progresses).filter(p => p.nextReview <= today && p.status !== 'new').length;
+  const dueToday = Object.values(progresses).filter(p => p.level >= 1 && p.lastReview <= today).length;
 
-  // Find top forgotten words (lowest easeFactor)
+  // Find top forgotten words (lowest level, most consecutive wrongs)
   const hardWordsProgress = Object.values(progresses)
-    .filter(p => p.status !== 'new')
-    .sort((a, b) => a.easeFactor - b.easeFactor)
+    .filter(p => p.level >= 1)
+    .sort((a, b) => {
+      if (a.level !== b.level) return a.level - b.level;
+      return b.consecutiveWrong - a.consecutiveWrong;
+    })
     .slice(0, 10);
     
   const hardWords = hardWordsProgress.map(p => {
@@ -76,7 +79,7 @@ export default function StatsPage() {
           </div>
           <div>
             <div className="text-2xl font-bold text-text">{known}</div>
-            <div className="text-xs text-text-muted">Từ đã nhớ (≥7 ngày)</div>
+            <div className="text-xs text-text-muted">Từ đã thuộc lòng</div>
           </div>
         </div>
         <div className="bg-surface border border-border p-5 rounded-xl flex items-center gap-4 shadow-lg">
@@ -124,8 +127,8 @@ export default function StatsPage() {
                     <div className="text-xs text-primary mt-0.5">{w.topic}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-danger font-bold mb-1 bg-danger/10 px-2 py-0.5 rounded-md inline-block">Độ dễ: {w.easeFactor.toFixed(2)}</div>
-                    <div className="text-[10px] text-text-muted">Ôn tiếp: {w.nextReview}</div>
+                    <div className="text-xs text-danger font-bold mb-1 bg-danger/10 px-2 py-0.5 rounded-md inline-block">Level: {w.level}</div>
+                    <div className="text-[10px] text-text-muted">Sai liên tiếp: {w.consecutiveWrong}</div>
                   </div>
                 </div>
               ))

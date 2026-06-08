@@ -23,11 +23,11 @@ export default function WordList({ words, progresses, onEdit, onDelete }: WordLi
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {words.map(word => {
         const p = progresses[word.id];
-        const isKnown = p && p.status === 'known';
-        const isLearning = p && p.status === 'learning';
+        const isKnown = p && p.level === 4;
+        const isLearning = p && p.level >= 1 && p.level <= 3;
         
         let statusBadge = <span className="w-3 h-3 rounded-full bg-surface-2" title="Chưa học"></span>;
-        if (isKnown) statusBadge = <span className="w-3 h-3 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Đã nhớ"></span>;
+        if (isKnown) statusBadge = <span className="w-3 h-3 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Đã thuộc lòng"></span>;
         else if (isLearning) statusBadge = <span className="w-3 h-3 rounded-full bg-warning shadow-[0_0_8px_rgba(245,158,11,0.6)]" title="Đang học"></span>;
 
         return (

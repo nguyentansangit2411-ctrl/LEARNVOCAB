@@ -3,16 +3,18 @@
 import { useState } from 'react';
 import { Word } from '@/lib/types';
 import { Eye, Volume2 } from 'lucide-react';
+import { LEVEL_CONFIG } from '@/lib/levelSystem';
+import { getWordProgress } from '@/lib/storage';
 
 interface FlashCardProps {
   word: Word;
-  onRate: (quality: 0 | 1 | 2 | 3 | 4 | 5) => void;
+  onRate: (quality: boolean) => void;
 }
 
 export default function FlashCard({ word, onRate }: FlashCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
 
-  const handleRate = (e: React.MouseEvent, quality: 0|1|2|3|4|5) => {
+  const handleRate = (e: React.MouseEvent, quality: boolean) => {
     e.stopPropagation();
     onRate(quality);
     setIsFlipped(false);
@@ -27,6 +29,9 @@ export default function FlashCard({ word, onRate }: FlashCardProps) {
     }
   };
 
+  const progress = getWordProgress(word.id);
+  const levelCfg = LEVEL_CONFIG[(progress?.level || 1) - 1];
+
   return (
     <div className="w-full max-w-md mx-auto aspect-[3/4] relative perspective-1000">
       <div 
@@ -37,6 +42,9 @@ export default function FlashCard({ word, onRate }: FlashCardProps) {
           className="absolute w-full h-full backface-hidden bg-surface border border-border rounded-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer hover:border-primary transition-colors" 
           onClick={() => setIsFlipped(true)}
         >
+          <span className={`text-xs px-2 py-0.5 rounded-full mb-4 inline-block ${levelCfg.bgClass} ${levelCfg.textClass}`}>
+            {levelCfg.emoji} {levelCfg.label}
+          </span>
           <div className="flex items-center gap-4 mb-4">
             <h2 className="text-4xl font-mono font-bold text-text">{word.word}</h2>
             <button 
@@ -84,22 +92,14 @@ export default function FlashCard({ word, onRate }: FlashCardProps) {
 
           <div className="mt-auto pt-4 border-t border-border">
             <p className="text-center text-sm text-text-muted mb-3">Bạn nhớ từ này ở mức nào?</p>
-            <div className="grid grid-cols-4 gap-2">
-              <button onClick={(e) => handleRate(e, 0)} className="flex flex-col items-center justify-center py-3 px-1 rounded-lg bg-surface-2 hover:bg-danger/20 hover:text-danger transition-colors group">
-                <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">😵</span>
-                <span className="text-[10px] sm:text-xs">Quên</span>
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={(e) => handleRate(e, false)} className="flex flex-col items-center justify-center py-3 px-1 rounded-lg bg-surface-2 hover:bg-danger/20 hover:text-danger transition-colors group">
+                <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">❌</span>
+                <span className="text-[10px] sm:text-xs">Chưa nhớ</span>
               </button>
-              <button onClick={(e) => handleRate(e, 2)} className="flex flex-col items-center justify-center py-3 px-1 rounded-lg bg-surface-2 hover:bg-warning/20 hover:text-warning transition-colors group">
-                <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">😕</span>
-                <span className="text-[10px] sm:text-xs">Khó</span>
-              </button>
-              <button onClick={(e) => handleRate(e, 3)} className="flex flex-col items-center justify-center py-3 px-1 rounded-lg bg-surface-2 hover:bg-info/20 hover:text-info transition-colors group">
-                <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">🙂</span>
-                <span className="text-[10px] sm:text-xs">Nhớ ra</span>
-              </button>
-              <button onClick={(e) => handleRate(e, 5)} className="flex flex-col items-center justify-center py-3 px-1 rounded-lg bg-surface-2 hover:bg-success/20 hover:text-success transition-colors group">
-                <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">😊</span>
-                <span className="text-[10px] sm:text-xs">Dễ</span>
+              <button onClick={(e) => handleRate(e, true)} className="flex flex-col items-center justify-center py-3 px-1 rounded-lg bg-surface-2 hover:bg-success/20 hover:text-success transition-colors group">
+                <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">✅</span>
+                <span className="text-[10px] sm:text-xs">Nhớ rồi</span>
               </button>
             </div>
           </div>

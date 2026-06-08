@@ -1,5 +1,6 @@
 import { DayPlan } from "./types";
 import { getTopics, getAllProgress, getMeta } from "./storage";
+import { sortWordsForReview } from "./levelSystem";
 import { addDays, format } from "date-fns";
 
 const TOTAL_DAYS = 21;
@@ -86,9 +87,10 @@ export function generateStudyPlan(startDateStr: string): DayPlan[] {
     // Review words: chỉ tính cho ngày đã qua hoặc hôm nay
     let reviewWords: string[] = [];
     if (dateStr <= todayStr) {
-      reviewWords = Object.values(allProgress)
-        .filter(p => p.nextReview === dateStr && p.status !== "new")
-        .map(p => p.wordId);
+      reviewWords = sortWordsForReview(
+        Object.keys(allProgress),
+        allProgress
+      );
     }
 
     // Completed topics: mọi từ trong topic đã được học ít nhất 1 lần
@@ -97,7 +99,7 @@ export function generateStudyPlan(startDateStr: string): DayPlan[] {
       if (!topic || topic.words.length === 0) return false;
       return topic.words.every(w => {
         const p = allProgress[w.id];
-        return p && p.status !== "new";
+        return p && p.level >= 2;
       });
     });
 
@@ -113,9 +115,9 @@ export function generateStudyPlan(startDateStr: string): DayPlan[] {
       status = "in-progress";
     }
 
-    // Ước tính thời gian thực tế: 1.5 phút/từ mới, 0.5 phút/từ ôn
+    // Ước tính thời gian thực tế: 1.5 phút/từ mới, 0.3 phút/từ ôn (nhanh hơn vì đã biết)
     const estimatedMinutes = Math.round(
-      newWordCount * 1.5 + reviewWords.length * 0.5
+      newWordCount * 1.5 + reviewWords.length * 0.3
     );
 
     plan.push({

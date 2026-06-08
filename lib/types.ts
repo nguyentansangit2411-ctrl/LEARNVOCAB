@@ -18,12 +18,12 @@ export interface Topic {
 
 export interface WordProgress {
   wordId: string;
-  interval: number;
-  easeFactor: number;
-  repetitions: number;
-  nextReview: string;
-  lastReview: string;
-  status: 'new' | 'learning' | 'known';
+  level: 1 | 2 | 3 | 4;       // mức độ nhớ hiện tại
+  consecutiveCorrect: number;   // số lần đúng liên tiếp trong level hiện tại
+  consecutiveWrong: number;     // số lần sai liên tiếp
+  totalReviews: number;         // tổng số lần đã ôn
+  lastReview: string;           // ISO date string
+  firstLearnedAt: string;       // ngày học lần đầu
 }
 
 export interface StudyMeta {
